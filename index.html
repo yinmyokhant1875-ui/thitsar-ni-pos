@@ -123,7 +123,7 @@
         <div class="flex gap-2 mb-2 shrink-0">
           <div class="relative flex-1">
             <i class="fa-solid fa-barcode absolute left-3 top-3 text-gray-400 text-xs"></i>
-            <input type="text" id="barcode-input" placeholder="Scan barcode or type item name..." class="w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" autofocus oninput="renderSellingPortal()" onkeydown="handleBarcodeKeydown(event)">
+            <input type="text" id="barcode-input" placeholder="Scan barcode or type item name..." class="w-full pl-9 pr-3 py-2 bg-white border rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" oninput="renderSellingPortal()" onkeydown="handleBarcodeKeydown(event)">
           </div>
         </div>
         <div id="category-pills" class="flex gap-1.5 overflow-x-auto pb-2 shrink-0"></div>
@@ -464,22 +464,10 @@
 
       if (tabId === 'inventory') renderInventoryTable();
       if (tabId === 'reports') renderReportsPortal();
-      if (tabId === 'selling') {
-        setTimeout(() => {
-          const bp = document.getElementById('barcode-input');
-          if (bp) bp.focus();
-        }, 100);
-      }
     }
 
     function checkBarcodeFocus(e) {
-      const sellingTab = document.getElementById('tab-selling');
-      if (sellingTab && sellingTab.classList.contains('tab-active')) {
-        const bp = document.getElementById('barcode-input');
-        if (bp && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'BUTTON') {
-          bp.focus();
-        }
-      }
+      // Removed auto-focus behavior on body click to prevent keyboard popups when tapping products
     }
 
     function toggleLanguage() {
@@ -537,8 +525,6 @@
         cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
       }
       renderCart();
-      const bp = document.getElementById('barcode-input');
-      if (bp) bp.focus();
     }
 
     function updateQty(id, delta) {
@@ -647,8 +633,6 @@
       window.print();
       showToast('Sale successful & voucher printed!');
       autoSyncQueue();
-      const bp = document.getElementById('barcode-input');
-      if (bp) bp.focus();
     }
 
     async function autoSyncQueue() {
