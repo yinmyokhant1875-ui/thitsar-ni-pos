@@ -2,10 +2,6 @@
 <html lang="en">
 <head>
   <link rel="manifest" href="manifest.json">
-  <!-- Add just below your header in HTML -->
-<div id="offline-banner" class="bg-amber-500 text-slate-900 text-center text-xs font-bold py-1 px-2 hidden">
-  <i class="fa-solid fa-triangle-exclamation mr-1"></i> You are currently Offline. Local POS mode is active. Sales will sync when reconnected.
-</div>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>သစ္စာနီ ဆေးဆိုင် POS</title>
@@ -84,7 +80,7 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 h-screen flex flex-col overflow-hidden select-none">
+<body class="bg-slate-100 h-screen flex flex-col overflow-hidden select-none" onclick="checkBarcodeFocus(event)">
 
   <!-- Toast Notification -->
   <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-slate-900 text-white px-5 py-2.5 rounded-full shadow-2xl hidden text-xs font-semibold flex items-center space-x-2 transition-all">
@@ -102,6 +98,11 @@
       </span>
     </div>
     <div class="flex items-center space-x-2">
+      <!-- Bluetooth Printer Connection Button -->
+      <button onclick="connectBluetoothPrinter()" class="text-slate-300 hover:text-white transition flex items-center gap-1 text-xs bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700" title="Connect Bluetooth Printer">
+        <i class="fa-brands fa-bluetooth text-blue-400 text-sm"></i>
+        <span class="hidden sm:inline text-[11px]">Printer</span>
+      </button>
       <!-- Developer Info / Support Button -->
       <button onclick="openDeveloperModal()" class="text-slate-300 hover:text-white transition flex items-center gap-1 text-xs bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700" title="Developer Info">
         <i class="fa-solid fa-headset text-emerald-400 text-sm"></i>
@@ -150,7 +151,7 @@
       </div>
     </section>
 
-<!-- INVENTORY MANAGEMENT PORTAL -->
+    <!-- INVENTORY MANAGEMENT PORTAL -->
     <section id="tab-inventory" class="tab-pane tab-hidden inset-0 flex flex-col p-3 bg-white overflow-hidden">
       <div class="flex justify-between items-center mb-3 shrink-0 gap-2 flex-wrap">
         <h2 class="text-sm font-bold text-slate-800" data-i18n="invHeader">Inventory Management</h2>
@@ -189,24 +190,28 @@
         <h2 class="text-sm font-bold text-slate-800" data-i18n="repHeader">Sales Reports & Insights</h2>
         <div class="flex items-center gap-2 flex-wrap">
           <div class="flex items-center gap-1 text-xs">
-
+            <span class="text-gray-500">From:</span>
+            <input type="date" id="report-start" class="px-2 py-1 border rounded-lg text-xs" onchange="renderReportsPortal()">
+            <span class="text-gray-500">To:</span>
+            <input type="date" id="report-end" class="px-2 py-1 border rounded-lg text-xs" onchange="renderReportsPortal()">
           </div>
-
+          <button onclick="exportReportsCSV()" class="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold"><i class="fa-solid fa-file-excel mr-1"></i> Export CSV</button>
+          <button onclick="exportFullDatabaseBackup()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold"><i class="fa-solid fa-database mr-1"></i> Backup JSON</button>
+          <button onclick="syncReportsWithGoogleSheet()" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold"><i class="fa-solid fa-rotate mr-1"></i> Sync Sheet</button>
         </div>
-        <div class="flex items-center gap-2 flex-wrap">
-  <div class="flex items-center gap-1 text-xs">
-    <span class="text-gray-500">From:</span>
-    <input type="date" id="report-start" class="px-2 py-1 border rounded-lg text-xs" onchange="renderReportsPortal()">
-    <span class="text-gray-500">To:</span>
-    <input type="date" id="report-end" class="px-2 py-1 border rounded-lg text-xs" onchange="renderReportsPortal()">
-  </div>
-  <button onclick="exportReportsCSV()" class="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold"><i class="fa-solid fa-file-excel mr-1"></i> Export CSV</button>
-  
-  <!-- NEW: Full Database Backup Button -->
-  <button onclick="exportFullDatabaseBackup()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold"><i class="fa-solid fa-database mr-1"></i> Backup JSON</button>
+      </div>
 
-  <button onclick="syncReportsWithGoogleSheet()" class="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold"><i class="fa-solid fa-rotate mr-1"></i> Sync Sheet</button>
-</div>
+      <!-- Total Sales Amount Summary Card (Calendar Filtered View) -->
+      <div class="mb-3 shrink-0">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex justify-between items-center shadow-sm">
+          <div>
+            <h3 class="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+              <i class="fa-solid fa-sack-dollar text-emerald-600"></i> Total Sales Amount (Filtered Range)
+            </h3>
+            <p class="text-[10px] text-gray-500">Based on selected calendar date filter</p>
+          </div>
+          <div id="report-total-amount" class="text-lg font-extrabold text-emerald-600">0 Ks</div>
+        </div>
       </div>
 
       <!-- Insights Summary Cards -->
@@ -365,7 +370,7 @@
 
   <!-- Client Script Logic -->
   <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1wj-zOD5_dMz4RmhXeI54_SxIRhxkF7mK6LKD-8Y2B7a6bZliKEULFv1gxP5Pg38S/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwCBgBEg2eim7lgp5X6js2dbx5Beoqg_tZNWg8ewwhRnd7xE6jT1Nptot4yGwqSupY0/exec";
 
     let products = JSON.parse(localStorage.getItem('pos_products')) || [
       { id: '1', barcode: '88501', name: 'လင်ဇီး', category: 'လိမ်းဆေး', price: 2000, qty: 30 },
@@ -377,6 +382,7 @@
     let activeCategory = 'All';
     let currentPaymentMethod = 'Cash';
     let currentLang = 'en';
+    let bluetoothPrinterDevice = null;
 
     const translations = {
       en: { navSelling: "Selling", navInventory: "Inventory", navReports: "Reports", cartTitle: "Current Order", cartEmpty: "Cart is empty", subtotalLabel: "Subtotal", totalLabel: "Total", invHeader: "Inventory Management", repHeader: "Sales Reports & Insights" },
@@ -392,21 +398,17 @@
       autoSyncQueue();
     };
 
-function updateNetworkStatus() {
-  const status = document.getElementById('network-status');
-  const offlineBanner = document.getElementById('offline-banner');
-  
-  if (navigator.onLine) {
-    status.className = "ml-2 px-2 py-0.5 text-[10px] rounded-full bg-emerald-500 text-white font-medium flex items-center gap-1";
-    status.innerHTML = '<i class="fa-solid fa-wifi text-[9px]"></i> Online';
-    if (offlineBanner) offlineBanner.classList.add('hidden');
-    autoSyncQueue();
-  } else {
-    status.className = "ml-2 px-2 py-0.5 text-[10px] rounded-full bg-amber-500 text-white font-medium flex items-center gap-1";
-    status.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-[9px]"></i> Offline';
-    if (offlineBanner) offlineBanner.classList.remove('hidden');
-  }
-}
+    function updateNetworkStatus() {
+      const status = document.getElementById('network-status');
+      if (navigator.onLine) {
+        status.className = "ml-2 px-2 py-0.5 text-[10px] rounded-full bg-emerald-500 text-white font-medium flex items-center gap-1";
+        status.innerHTML = '<i class="fa-solid fa-wifi text-[9px]"></i> Online';
+        autoSyncQueue();
+      } else {
+        status.className = "ml-2 px-2 py-0.5 text-[10px] rounded-full bg-slate-700 text-white font-medium flex items-center gap-1";
+        status.innerHTML = '<i class="fa-solid fa-wifi text-[9px]"></i> Offline Mode';
+      }
+    }
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -421,6 +423,25 @@ function updateNetworkStatus() {
 
     function closeDeveloperModal() {
       document.getElementById('developer-modal').classList.add('hidden');
+    }
+
+    async function connectBluetoothPrinter() {
+      try {
+        if (!navigator.bluetooth) {
+          showToast('Web Bluetooth is not supported on this device/browser.');
+          return;
+        }
+        showToast('Scanning for Bluetooth thermal printers...');
+        const device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb', 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', '49535343-fe7d-4ae5-8fa9-9fafd205e455']
+        });
+        bluetoothPrinterDevice = device;
+        showToast('Printer connected: ' + (device.name || 'Thermal Printer'));
+      } catch (error) {
+        console.log('Bluetooth printer connection error', error);
+        showToast('Printer connection cancelled or failed.');
+      }
     }
 
     function switchTab(tabId, evt) {
@@ -443,6 +464,22 @@ function updateNetworkStatus() {
 
       if (tabId === 'inventory') renderInventoryTable();
       if (tabId === 'reports') renderReportsPortal();
+      if (tabId === 'selling') {
+        setTimeout(() => {
+          const bp = document.getElementById('barcode-input');
+          if (bp) bp.focus();
+        }, 100);
+      }
+    }
+
+    function checkBarcodeFocus(e) {
+      const sellingTab = document.getElementById('tab-selling');
+      if (sellingTab && sellingTab.classList.contains('tab-active')) {
+        const bp = document.getElementById('barcode-input');
+        if (bp && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'BUTTON') {
+          bp.focus();
+        }
+      }
     }
 
     function toggleLanguage() {
@@ -500,6 +537,8 @@ function updateNetworkStatus() {
         cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
       }
       renderCart();
+      const bp = document.getElementById('barcode-input');
+      if (bp) bp.focus();
     }
 
     function updateQty(id, delta) {
@@ -608,26 +647,26 @@ function updateNetworkStatus() {
       window.print();
       showToast('Sale successful & voucher printed!');
       autoSyncQueue();
+      const bp = document.getElementById('barcode-input');
+      if (bp) bp.focus();
     }
 
-async function autoSyncQueue() {
+    async function autoSyncQueue() {
       if (!navigator.onLine) return;
       let queue = JSON.parse(localStorage.getItem('offline_sales_queue')) || [];
       if (queue.length === 0) return;
 
-      // Filter out already synced items
       let pendingQueue = queue.filter(o => !o.synced);
       if (pendingQueue.length === 0) return;
 
       try {
         let res = await fetch(WEB_APP_URL, {
           method: 'POST',
-          mode: 'no-cors', // Prevents CORS block issues with Apps Script endpoints
+          mode: 'no-cors',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ records: pendingQueue })
         });
         
-        // Mark items as synced locally since no-cors returns opaque response
         queue.forEach(o => o.synced = true);
         localStorage.setItem('offline_sales_queue', JSON.stringify(queue));
         showToast('Offline sales successfully synced to cloud!');
@@ -717,6 +756,10 @@ async function autoSyncQueue() {
         return true;
       });
 
+      // Calculate total sales amount for filtered date range
+      const totalFilteredSales = filtered.reduce((sum, o) => sum + (o.total || 0), 0);
+      document.getElementById('report-total-amount').innerText = totalFilteredSales.toLocaleString() + ' Ks';
+
       let salesMap = {};
       filtered.forEach(o => {
         o.items.forEach(i => {
@@ -774,107 +817,90 @@ async function autoSyncQueue() {
       autoSyncQueue();
       showToast('Attempting Google Sheets sync...');
     }
-    async function requestAppPermissions() {
-  // 1. Request Browser/PWA Notification Permission
-  if ("Notification" in window) {
-    let permission = await Notification.requestPermission();
-    if (permission === "granted") {
-      showToast("Notification permission granted!");
-    } else {
-      showToast("Notifications blocked or denied.");
+
+    function exportFullDatabaseBackup() {
+      const backupData = {
+        products: JSON.parse(localStorage.getItem('pos_products')) || [],
+        salesQueue: JSON.parse(localStorage.getItem('offline_sales_queue')) || [],
+        exportDate: new Date().toISOString()
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'thitsar_ni_pos_backup_' + new Date().toISOString().split('T')[0] + '.json';
+      link.click();
+      showToast('Full system backup downloaded successfully!');
     }
-  } else {
-    showToast("Notifications not supported on this device view.");
-  }
-}
-function exportFullDatabaseBackup() {
-  const backupData = {
-    products: JSON.parse(localStorage.getItem('pos_products')) || [],
-    salesQueue: JSON.parse(localStorage.getItem('offline_sales_queue')) || [],
-    exportDate: new Date().toISOString()
-  };
 
-  const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'thitsar_ni_pos_backup_' + new Date().toISOString().split('T')[0] + '.json';
-  link.click();
-  showToast('Full system backup downloaded successfully!');
-}
-function downloadProductSampleCSV() {
-  const csvContent = "barcode,name,category,price,qty\n88505,ဥပမာ ဆေးနာမည်,လိမ်းဆေး,2500,50\n88506,ဥပမာ ဆေးပြား,သောက်ဆေး,1200,100\n";
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'product_upload_sample.csv';
-  link.click();
-  showToast('Sample CSV template downloaded!');
-}
+    function downloadProductSampleCSV() {
+      const csvContent = "barcode,name,category,price,qty\n88505,ဥပမာ ဆေးနာမည်,လိမ်းဆေး,2500,50\n88506,ဥပမာ ဆေးပြား,သောက်ဆေး,1200,100\n";
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'product_upload_sample.csv';
+      link.click();
+      showToast('Sample CSV template downloaded!');
+    }
 
-function handleProductCSVUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+    function handleProductCSVUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const text = e.target.result;
-    const lines = text.split(/\r\n|\n/);
-    let addedCount = 0;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        const lines = text.split(/\r\n|\n/);
+        let addedCount = 0;
 
-    // Start from index 1 to skip header row
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      const cols = line.split(',').map(val => val.replace(/^["']|["']$/g, '').trim());
-      if (cols.length >= 5) {
-        const [barcode, name, category, priceStr, qtyStr] = cols;
-        if (name) {
-          const price = parseFloat(priceStr) || 0;
-          const qty = parseInt(qtyStr) || 0;
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
           
-          // Check if product with this barcode already exists
-          const existing = products.find(p => p.barcode === barcode && barcode !== '');
-          if (existing) {
-            existing.name = name;
-            existing.category = category;
-            existing.price = price;
-            existing.qty = qty;
-          } else {
-            products.push({
-              id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-              barcode: barcode || '',
-              name: name,
-              category: category || 'General',
-              price: price,
-              qty: qty
-            });
+          const cols = line.split(',').map(val => val.replace(/^["']|["']$/g, '').trim());
+          if (cols.length >= 5) {
+            const [barcode, name, category, priceStr, qtyStr] = cols;
+            if (name) {
+              const price = parseFloat(priceStr) || 0;
+              const qty = parseInt(qtyStr) || 0;
+              
+              const existing = products.find(p => p.barcode === barcode && barcode !== '');
+              if (existing) {
+                existing.name = name;
+                existing.category = category;
+                existing.price = price;
+                existing.qty = qty;
+              } else {
+                products.push({
+                  id: 'p_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+                  barcode: barcode || '',
+                  name: name,
+                  category: category || 'General',
+                  price: price,
+                  qty: qty
+                });
+              }
+              addedCount++;
+            }
           }
-          addedCount++;
         }
-      }
+
+        localStorage.setItem('pos_products', JSON.stringify(products));
+        renderInventoryTable();
+        renderSellingPortal();
+        showToast(`Successfully imported ${addedCount} products!`);
+        event.target.value = '';
+      };
+      reader.readAsText(file);
     }
 
-    localStorage.setItem('pos_products', JSON.stringify(products));
-    renderInventoryTable();
-    renderSellingPortal();
-    showToast(`Successfully imported ${addedCount} products!`);
-    event.target.value = ''; // Reset input so the same file can be uploaded again if needed
-  };
-  reader.readAsText(file);
-}
-    // Register Service Worker for PWA Offline Support
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then((reg) => {
-        console.log('Service Worker registered successfully with scope: ', reg.scope);
-      })
-      .catch((err) => {
-        console.log('Service Worker registration failed: ', err);
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => {
+          console.log('Service Worker registration failed: ', err);
+        });
       });
-  });
-}
+    }
   </script>
 </body>
 </html>
